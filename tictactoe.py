@@ -30,7 +30,6 @@ class Game:
     '''Completes a game with the specified outcome and optional winner'''
     self.state = outcome
     self.winner = winner
-    
 
 
 class Board:
@@ -340,57 +339,69 @@ if __name__ == '__main__':
 |                         Welcome to Tic-Tac-Toe!                              |
 +------------------------------------------------------------------------------+
 '''
-    size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
+    while True:
+      size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
 
-    while type(size) == str:
-      if size.strip() == '':
-        size = 3
-      else:
-        try:
-          size = int(size)
-          if size < 3:
-            raise ValueError 
-        except ValueError:
-          print "I'm sorry, %s is not a valid board size" % size
-          size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
-
-    print "Great, I'll set up a %(n)sx%(n)s playing board\n" % { 'n' : size }
-    game = Game(size)
-
-    first = raw_input('Would you like to move first? (Enter 1 or 2): ')
-    while first.upper().strip() not in ['1','2']:
-      print "I'm sorry, %s is an invalid choice" % first
-      first = raw_input("Would you like to move first or second? (Enter 1 or 2): ")
-    first = first.upper().strip() == '2'
-
-    if first:
-      print "Ok, I'll go first"
-    else:
-      print "That confident, eh? Ok, you'll go first"
-    
-    print '\nGOOD LUCK!\n'
-    game.play(first)
-    while game.state == Game.STATE_IN_PROGRESS:
-      print game.board
-      if game.computer.occupations:
-        print "My last move was at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
-      print "Now it's your move"
-
-      move = []
-      while not move:
-        move = [ input_coordinate('row',game.board.size-1), input_coordinate('column',game.board.size-1) ]
-        if game.board.is_played(move[0],move[1]):
-          print "Oops. The position (%s,%s) is unavailable" % tuple(move)
-          move = []
+      while type(size) == str:
+        if size.strip() == '':
+          size = 3
         else:
-          print "Making move at (%s,%s)" % tuple(move)
-          game.player.move(game,game.board,game.computer,move[0],move[1])
-          print "[ END TURN ]"
-    print game.board
-    if game.state == Game.STATE_DRAW:
-      print 'The game is a draw!'
-    elif game.state == Game.STATE_COMPLETE:
-      print 'Game Over! %s has won!' % game.winner
+          try:
+            size = int(size)
+            if size < 3:
+              raise ValueError 
+          except ValueError:
+            print "I'm sorry, %s is not a valid board size" % size
+            size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
+
+      print "Great, I'll set up a %(n)sx%(n)s playing board\n" % { 'n' : size }
+      game = Game(size)
+
+      first = raw_input('Would you like to move first? (Enter 1 or 2): ')
+      while first.upper().strip() not in ['1','2']:
+        print "I'm sorry, %s is an invalid choice" % first
+        first = raw_input("Would you like to move first or second? (Enter 1 or 2): ")
+      first = first.upper().strip() == '2'
+  
+      if first:
+        print "Ok, I'll go first"
+      else:
+        print "That confident, eh? Ok, you'll go first"
+      
+      print '\nGOOD LUCK!\n'
+      game.play(first)
+      while game.state == Game.STATE_IN_PROGRESS:
+        print game.board
+        if game.computer.occupations:
+          print "My last move was at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
+        print "Now it's your move"
+
+        move = []
+        while not move:
+          move = [ input_coordinate('row',game.board.size-1), input_coordinate('column',game.board.size-1) ]
+          if game.board.is_played(move[0],move[1]):
+            print "Oops. The position (%s,%s) is unavailable" % tuple(move)
+            move = []
+          else:
+            print "Making move at (%s,%s)" % tuple(move)
+            game.player.move(game,game.board,game.computer,move[0],move[1])
+            print "[ END TURN ]"
+      print game.board
+      if game.state == Game.STATE_DRAW:
+        print 'The game is a draw!\n'
+      else:
+        print 'Game Over! %s has won!' % game.winner
+        print 'YOU HAVE %s\n' % ('WON' if game.winner == game.player.marker else 'LOST')
+
+      again = raw_input('Would you like to play again? (Enter y or n): ')
+      while again.upper().strip() not in ['Y','N']:
+        print "I'm sorry, but %s is an invalid option" % again
+        again = raw_input('Would you like to play again? (Enter y or n): ')
+
+      if again.upper().strip() == 'N':
+        break
   except KeyboardInterrupt:
-    # Just so we have a way to exit cleanly
-    print '\nGoodbye!'
+    pass
+
+  print '\nGoodbye! Thanks for playing!'
+  # EOF
