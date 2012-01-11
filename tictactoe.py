@@ -108,18 +108,30 @@ class Path:
   DIAGONAL = 2
   DIAGONAL_INVERSE = 3
 
-  def __init__(self, moves, direction):
+  def __init__(self, squares, direction):
     self.direction = direction
-    self.moves = moves
+    self.squares = squares
 
   def rank(self):
-    return len(self.moves)
+    return len(self.squares)
 
-  def last(self):
-    return self.moves[-1]
+  def __contains__(self, item):
+    return item in self.squares
+
+  def __getitem__(self, key):
+    return self.squares[key]
+
+  def __setitem__(self, key, value):
+    self.squares[key] = value
+
+  def __delitem__(self, key):
+    del self.squares[key]
+
+  def remove(self, square):
+    self.squares.remove(square)
 
   def __repr__(self):
-    return 'Path(%s): %s' % (self.rank(),str(self.moves))
+    return 'Path(%s): %s' % (self.rank(),str(self.squares))
 
 
 class Player:
@@ -141,7 +153,7 @@ class Player:
     for path in self.paths:
       if path.rank() > 1:
         return False
-      elif square in path.moves:
+      elif square in path:
         return True
 
   def move(self,game,board,opponent,x = None,y = None):
@@ -188,13 +200,13 @@ class Player:
           # First thing's first, check for a 1-move win for this player. Then check if we need to block.
           # If all else fails, grab the next move from the win path set
           if self.paths[0].rank() == 1:
-            next_move = self.paths[0].last()
+            next_move = self.paths[0][-1]
             winning_move = True
           elif opponent.paths and opponent.paths[0].rank() == 1:
-            next_move = opponent.paths[0].last()
+            next_move = opponent.paths[0][-1]
             winning_move = self.check_winning_move(next_move)
           else:
-            next_move = self.paths[0].last()
+            next_move = self.paths[0][-1]
             winning_move = False # We won't win...we have already checked if this is a winning move
 
           board.occupy(next_move.x,next_move.y,self.marker)
@@ -206,7 +218,7 @@ class Player:
         else:
           if opponent.paths:
             # The case where we don't have any more paths to look at but our opponent does
-            next_move = opponent.paths[0].last()
+            next_move = opponent.paths[0][-1]
             winning_move = False
 
             if next_move:
@@ -250,7 +262,7 @@ class Player:
     line of sight through this point.
     '''
     for path in opponent.paths:
-      if board.squares[x][y] in path.moves:
+      if board.squares[x][y] in path:
         opponent.paths.remove(path)
     opponent.sort_paths()
 
@@ -278,8 +290,8 @@ class Player:
     # Remove this point from any existing path
     square = board.squares[x][y]
     for path in self.paths:
-      if square in path.moves:
-        path.moves.remove(square)
+      if square in path:
+        path.remove(square)
         ignore.append(path.direction)
 
     # Dictionary of Direction:Moves that are winnable
