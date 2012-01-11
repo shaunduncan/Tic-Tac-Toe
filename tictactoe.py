@@ -135,7 +135,7 @@ class Player:
     self.paths = []
     self.occupations = []
 
-  def check_win_block(self,square):
+  def check_winning_move(self,square):
     '''
     Checks a square being played lies within a single move path we are keeping track
     of. In otherwords, we check only rank-1 paths, otherwise return false
@@ -194,7 +194,7 @@ class Player:
             winning_move = True
           elif opponent.paths and opponent.paths[0].rank() == 1:
             next_move = opponent.paths[0].last()
-            winning_move = self.check_win_block(next_move)
+            winning_move = self.check_winning_move(next_move)
           else:
             next_move = self.paths[0].last()
             winning_move = False # We won't win...we have already checked if this is a winning move
@@ -212,7 +212,7 @@ class Player:
             winning_move = False
 
             if next_move:
-              winning_move = self.check_win_block(next_move)
+              winning_move = self.check_winning_move(next_move)
               board.occupy(next_move.x,next_move.y,self.marker)
               self.occupations.append( next_move )
               self.strategize(board,opponent,next_move.x,next_move.y)
@@ -231,10 +231,15 @@ class Player:
       # A User Move
       board.occupy(x,y,self.marker)
       self.occupations.append( board.squares[x][y] )
-      self.strategize(board,opponent,x,y)
-      opponent.move(game,board,self)
 
-      # TODO: Check if the move resulted in a win
+      if self.check_winning_move(board.squares[x][y]):
+        game.complete(Game.STATE_COMPLETE,self.marker)
+      elif len(board.played) == pow(board.size,2):
+        # No more moves available, game is a draw
+        game.complete(Game.STATE_DRAW)
+      else:
+        self.strategize(board,opponent,x,y)
+        opponent.move(game,board,self)
 
   def sort_paths(self):
     '''Ranks and orders win paths by the number of moves until completion'''
