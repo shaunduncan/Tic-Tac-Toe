@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import math
 
 class Game:
   '''
@@ -264,6 +263,15 @@ class Player:
     we ignore the path. If we encounter our own marker, we ignore it. If we encounter an open space
     we add it to the direction-path.
     '''
+    def __check_square(x,y,direction):
+      '''A utility function for strategize() that prevents repetition and simplifies the code'''
+      if direction not in ignore:
+        if board.is_played(x,y):
+          if board.squares[x][y] in opponent.occupations:
+            ignore.append(direction)
+        else:
+          members[direction].append(board.squares[x][y])
+
     self.destrategize(board,opponent,x,y)
     ignore = [] # Array of ignoring path directions
 
@@ -278,43 +286,16 @@ class Player:
     members = { Path.PATH_HORIZONTAL:[], Path.PATH_VERTICAL:[], Path.PATH_DIAGONAL:[], Path.PATH_DIAGONAL_INVERSE:[] }
 
     for i in range(board.size):
-      # Check the row containing this particular point
-      if Path.PATH_HORIZONTAL not in ignore:
-        if board.is_played(x,i):
-          if board.squares[x][i] in opponent.occupations:
-            ignore.append(Path.PATH_HORIZONTAL)            
-        else:
-            members[Path.PATH_HORIZONTAL].append( board.squares[x][i] )
-
-      # Check the column containing this particular point
-      if Path.PATH_VERTICAL not in ignore:
-        if board.is_played(i,y):
-          if board.squares[i][y] in opponent.occupations:
-            ignore.append(Path.PATH_VERTICAL)
-        else:
-            members[Path.PATH_VERTICAL].append( board.squares[i][y] )
-
-      if x == y:
-        # Only check the diagonal path if the point lies on the x=y diagonal (top-left to bottom-right)
-        if Path.PATH_DIAGONAL not in ignore:
-          if board.is_played(i,i):
-            if board.squares[i][i] in opponent.occupations:
-              ignore.append(Path.PATH_DIAGONAL)
-          else:
-              members[Path.PATH_DIAGONAL].append( board.squares[i][i] )
-
+      # Check the row, column and diagonals containing this particular point
+      __check_square(x,i,Path.PATH_HORIZONTAL)
+      __check_square(i,y,Path.PATH_VERTICAL)
+      if y == x:
+        __check_square(i,i,Path.PATH_DIAGONAL)
       if y == board.size - x - 1:
-        # Only check the inverse diagonal path if the point lies on the y=size-x-1 diagonal (bottom-left to top-right)
-        inverse = board.size - i - 1
-        if Path.PATH_DIAGONAL_INVERSE not in ignore:
-          if board.is_played(i,inverse):
-            if board.squares[i][inverse] in opponent.occupations:
-              ignore.append(Path.PATH_DIAGONAL_INVERSE)
-          else:
-              members[Path.PATH_DIAGONAL_INVERSE].append( board.squares[i][inverse] )
+        __check_square(i,board.size - i - 1,Path.PATH_DIAGONAL_INVERSE)
 
     for direction,path in members.items():
-      if path and len(path) > 0 and direction not in ignore:
+      if path and direction not in ignore:
         self.paths.append( Path(path,direction) )
 
     self.sort_paths()
