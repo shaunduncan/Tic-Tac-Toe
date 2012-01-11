@@ -11,11 +11,13 @@ class Game:
   STATE_COMPLETE = 1
   STATE_DRAW = 2
 
-  def __init__(self,size,computer_first = True):
+  def __init__(self,size):
     self.board = Board(size)
     self.state = Game.STATE_IN_PROGRESS
     self.winner = None
 
+  def play(self, computer_first = True):
+    '''Initiate the game'''
     if computer_first:
       self.computer = Player('X')
       self.player = Player('O')
@@ -293,3 +295,76 @@ class Player:
         self.paths.append( Path(path,direction) )
 
     self.sort_paths()
+
+
+if __name__ == '__main__':
+  def input_coordinate(row_col, max_val):
+    coord = raw_input("Enter a %s number (0-%s): " % (row_col, max_val))
+    while type(coord) == str:
+      try:
+        coord = int(coord)
+        if coord not in range(max_val+1):
+          raise ValueError
+      except ValueError:
+        print "I'm sorry, %s is not a valid input" % coord
+        coord = raw_input("Enter a %s number (0-%s): " % (row_col, max_val))
+    return coord  
+
+  try:
+    print '''
++------------------------------------------------------------------------------+
+|                         Welcome to Tic-Tac-Toe!                              |
++------------------------------------------------------------------------------+
+'''
+    size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
+
+    while type(size) == str:
+      if size.strip() == '':
+        size = 3
+      else:
+        try:
+          size = int(size)
+          if size < 3:
+            raise ValueError 
+        except ValueError:
+          print "I'm sorry, %s is not a valid board size" % size
+          size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
+
+    print "Great, I'll set up a %(n)sx%(n)s playing board\n" % { 'n' : size }
+    game = Game(size)
+
+    first = raw_input('Would you like to move first? (Enter 1 or 2): ')
+    while first.upper().strip() not in ['1','2']:
+      print "I'm sorry, %s is an invalid choice" % first
+      first = raw_input("Would you like to move first or second? (Enter 1 or 2): ")
+    first = first.upper().strip() == '2'
+
+    if first:
+      print "Ok, I'll go first"
+    else:
+      print "That confident, eh? Ok, you'll go first"
+    
+    print '\nGOOD LUCK!\n'
+    game.play(first)
+    while game.state == Game.STATE_IN_PROGRESS:
+      print game.board
+      print "Now it's your move"
+
+      move = [ None, None ]
+      while not move[0] and not move[1]:
+        move[0] = input_coordinate('row',game.board.size-1)
+        move[1] = input_coordinate('column',game.board.size-1)
+        if game.board.is_played(move[0],move[1]):
+          print "Oops. The position (%s,%s) is unavailable" % tuple(move)
+          move = [ None, None ]
+        else:
+          print "Making move at (%s,%s)" % tuple(move)
+          game.player.move(game,game.board,game.computer,move[0],move[1])
+          print "[ END TURN ]"
+    if game.state == Game.STATE_DRAW:
+      print 'The game is a draw!'
+    elif game.state == Game.STATE_COMPLETE:
+      print 'Game Over! %s has won!' % game.winner
+  except KeyboardInterrupt:
+    # Just so we have a way to exit cleanly
+    print '\nGoodbye!'
