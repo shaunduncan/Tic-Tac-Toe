@@ -184,13 +184,17 @@ class Player:
           winning_move = False
           next_move = None
 
-          # First thing's first, check for a 1-move opponent win
-          if opponent.paths and opponent.paths[0].rank() == 1:
+          # First thing's first, check for a 1-move win for this player. Then check if we need to block.
+          # If all else fails, grab the next move from the win path set
+          if self.paths[0].rank() == 1:
+            next_move = self.paths[0].last()
+            winning_move = True
+          elif opponent.paths and opponent.paths[0].rank() == 1:
             next_move = opponent.paths[0].last()
             winning_move = self.check_win_block(next_move)
           else:
             next_move = self.paths[0].last()
-            winning_move = self.paths[0].rank() == 1 # We will win on this move of path where rank = 1
+            winning_move = False # We won't win...we have already checked if this is a winning move
 
           board.occupy(next_move.x,next_move.y,self.marker)
           self.occupations.append( next_move )
