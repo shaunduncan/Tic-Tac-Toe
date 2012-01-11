@@ -155,7 +155,8 @@ class Player:
       if not self.occupations:
         if self.marker == 'X':
           # First Move, Choose 0,0
-          self.occupations.append( board.occupy(0,0,self.marker) )
+          board.occupy(0,0,self.marker)
+          self.occupations.append( board.squares[0][0] )
           self.strategize(board,opponent,0,0)
         else:
           # What is the optimal 1st move for O?
@@ -164,10 +165,12 @@ class Player:
             next_x = player_move.x + (1 if player_move.x == 0 else -1)
             next_y = player_move.y + (1 if player_move.y == 0 else -1)
 
-            self.occupations.append( board.occupy(next_x,next_y,self.marker) )
+            board.occupy(next_x,next_y,self.marker)
+            self.occupations.append( board.squares[next_x][next_y] )
             self.strategize(board,opponent,next_x,next_y)
           else:
-            self.occupations.append( board.occupy(0,0,self.marker) )
+            board.occupy(0,0,self.marker)
+            self.occupations.append( board.squares[0][0] )
             self.strategize(board,opponent,0,0)
       else:
         if self.paths:
@@ -183,7 +186,8 @@ class Player:
             next_move = self.paths[0].last()
             winning_move = self.paths[0].rank() == 1 # We will win on this move of path where rank = 1
 
-          self.occupations.append( board.occupy(next_move.x,next_move.y,self.marker) )
+          board.occupy(next_move.x,next_move.y,self.marker)
+          self.occupations.append( next_move )
           self.strategize(board,opponent,next_move.x,next_move.y)
 
           if winning_move:
@@ -196,7 +200,8 @@ class Player:
 
             if next_move:
               winning_move = self.check_win_block(next_move)
-              self.occupations.append( board.occupy(next_move.x,next_move.y,self.marker) )
+              board.occupy(next_move.x,next_move.y,self.marker)
+              self.occupations.append( next_move )
               self.strategize(board,opponent,next_move.x,next_move.y)
 
               if winning_move:
@@ -211,7 +216,8 @@ class Player:
             game.complete(Game.STATE_DRAW)
     else:
       # A User Move
-      self.occupations.append( board.occupy(x,y,self.marker) )
+      board.occupy(x,y,self.marker)
+      self.occupations.append( board.squares[x][y] )
       self.strategize(board,opponent,x,y)
       opponent.move(game,board,self)
 
@@ -348,6 +354,9 @@ if __name__ == '__main__':
     game.play(first)
     while game.state == Game.STATE_IN_PROGRESS:
       print game.board
+      last_computer_move = game.computer.occupations[-1]
+      if last_computer_move:
+        print "My last move was at (%s,%s)" % (last_computer_move.x, last_computer_move.y)
       print "Now it's your move"
 
       move = [ None, None ]
