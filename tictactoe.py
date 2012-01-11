@@ -370,6 +370,7 @@ if __name__ == '__main__':
           print "Making move at (%s,%s)" % tuple(move)
           game.player.move(game,game.board,game.computer,move[0],move[1])
           print "[ END TURN ]"
+    print game.board
     if game.state == Game.STATE_DRAW:
       print 'The game is a draw!'
     elif game.state == Game.STATE_COMPLETE:
