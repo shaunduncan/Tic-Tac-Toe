@@ -371,13 +371,12 @@ if __name__ == '__main__':
         print "My last move was at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
       print "Now it's your move"
 
-      move = [ None, None ]
-      while not move[0] and not move[1]:
-        move[0] = input_coordinate('row',game.board.size-1)
-        move[1] = input_coordinate('column',game.board.size-1)
+      move = []
+      while not move:
+        move = [ input_coordinate('row',game.board.size-1), input_coordinate('column',game.board.size-1) ]
         if game.board.is_played(move[0],move[1]):
           print "Oops. The position (%s,%s) is unavailable" % tuple(move)
-          move = [ None, None ]
+          move = []
         else:
           print "Making move at (%s,%s)" % tuple(move)
           game.player.move(game,game.board,game.computer,move[0],move[1])
