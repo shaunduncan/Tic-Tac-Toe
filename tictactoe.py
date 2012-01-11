@@ -49,11 +49,14 @@ class Board:
       for j in range(size):
         self.squares[i].append( Square(i,j) )
 
-  def is_corner(self, x, y):
+  def is_corner(self, x, y = None):
     '''
     Checks to see if an x,y position is a board corner or not. There are four corners to check
     for: (0,0), (0,size-1), (size-1,0), (size-1,size-1)
     '''
+    if y == None:
+      y = x.y
+      x = x.x
     return (x == 0 and (y == 0 or y == self.size - 1)) or (y == 0 and (x == 0 or x == self.size - 1))
 
   def occupy(self, x, y, marker):
@@ -167,7 +170,7 @@ class Player:
         else:
           # What is the optimal 1st move for O?
           player_move = opponent.occupations[-1]
-          if board.is_corner(first_move):
+          if board.is_corner(player_move):
             next_x = player_move.x + (1 if player_move.x == 0 else -1)
             next_y = player_move.y + (1 if player_move.y == 0 else -1)
 
@@ -364,9 +367,8 @@ if __name__ == '__main__':
     game.play(first)
     while game.state == Game.STATE_IN_PROGRESS:
       print game.board
-      last_computer_move = game.computer.occupations[-1]
-      if last_computer_move:
-        print "My last move was at (%s,%s)" % (last_computer_move.x, last_computer_move.y)
+      if game.computer.occupations:
+        print "My last move was at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
       print "Now it's your move"
 
       move = [ None, None ]
