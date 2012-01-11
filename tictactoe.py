@@ -103,10 +103,10 @@ class Path:
   diagonal and inverse diagonal. Paths also maintain a rank which is analagous to
   the number of moves need to complete the path
   '''
-  PATH_HORIZONTAL = 0
-  PATH_VERTICAL = 1
-  PATH_DIAGONAL = 2
-  PATH_DIAGONAL_INVERSE = 3
+  HORIZONTAL = 0
+  VERTICAL = 1
+  DIAGONAL = 2
+  DIAGONAL_INVERSE = 3
 
   def __init__(self, moves, direction):
     self.direction = direction
@@ -283,16 +283,16 @@ class Player:
         ignore.append(path.direction)
 
     # Dictionary of Direction:Moves that are winnable
-    members = { Path.PATH_HORIZONTAL:[], Path.PATH_VERTICAL:[], Path.PATH_DIAGONAL:[], Path.PATH_DIAGONAL_INVERSE:[] }
+    members = { Path.HORIZONTAL:[], Path.VERTICAL:[], Path.DIAGONAL:[], Path.DIAGONAL_INVERSE:[] }
 
     for i in range(board.size):
       # Check the row, column and diagonals containing this particular point
-      __check_square(x,i,Path.PATH_HORIZONTAL)
-      __check_square(i,y,Path.PATH_VERTICAL)
+      __check_square(x,i,Path.HORIZONTAL)
+      __check_square(i,y,Path.VERTICAL)
       if y == x:
-        __check_square(i,i,Path.PATH_DIAGONAL)
+        __check_square(i,i,Path.DIAGONAL)
       if y == board.size - x - 1:
-        __check_square(i,board.size - i - 1,Path.PATH_DIAGONAL_INVERSE)
+        __check_square(i,board.size - i - 1,Path.DIAGONAL_INVERSE)
 
     for direction,path in members.items():
       if path and direction not in ignore:
