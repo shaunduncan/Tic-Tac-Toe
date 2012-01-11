@@ -19,12 +19,13 @@ class Game:
     if computer_first:
       self.computer = Player('X')
       self.player = Player('O')
-      self.computer.move(self,self.player)
+      self.computer.move(self,self.board,self.player)
     else:
       self.computer = Player('O')
       self.player = Player('X')
 
   def complete(self, outcome, winner = None):
+    '''Completes a game with the specified outcome and optional winner'''
     self.state = outcome
     self.winner = winner
     
@@ -33,7 +34,8 @@ class Game:
 class Board:
   '''
   A Board is the main component of a Game. It can be thought of as a bookkeeper
-  of sorts for managing game operations.
+  of sorts for managing game operations. The board will keep track of all squares
+  and those that have been played
   '''  
   def __init__(self, size):
     self.size = size
@@ -46,28 +48,30 @@ class Board:
         self.squares[i].append( Square(i,j) )
 
   def is_corner(self, x, y):
-    return (x == 0 and y == 0) or \
-      (x == self.size - 1 and y == self.size - 1) or \
-      (x == 0 and y == self.size - 1) or \
-      (x == self.size - 1 and y == 0)
+    '''
+    Checks to see if an x,y position is a board corner or not. There are four corners to check
+    for: (0,0), (0,size-1), (size-1,0), (size-1,size-1)
+    '''
+    return (x == 0 and (y == 0 or y == self.size - 1)) or (y == 0 and (x == 0 or x == self.size - 1))
 
   def occupy(self, x, y, marker):
-    square = self.squares[x][y]
-    square.placemark = marker
-    self.played.append( square.key )
-    return square
+    '''Marks a square at an x,y coordinate with a marker and sets it as having been played'''
+    self.squares[x][y].placemark = marker
+    self.played.append( self.squares[x][y] )
 
   def is_played(self, x, y):
+    '''Shorthand for checking if an x,y coordinate has been played or not'''
     return self.squares[x][y] in self.played
 
   def __str__(self):
     rows = []
-    glue = '\n' + ('+'.join(['---' for i in range(self.size)])) + '\n'
+    glue = '\n   ' + ('+'.join(['---' for i in range(self.size)])) + '\n'
+    header = '    ' + '   '.join([ str(x) for x in range(self.size) ]) + ' '
 
     for row in self.squares:
-      rows.append(' ' + (' | '.join([ str(cell) for cell in row ])) + ' ')
+      rows.append(' ' + str(self.squares.index(row)) + '  ' + (' | '.join([ str(cell) for cell in row ])) + ' ')
 
-    return glue.join(rows)    
+    return '\n' + header + '\n' + glue.join(rows) + '\n'
     
 
 
@@ -98,28 +102,15 @@ class Path:
   PATH_DIAGONAL = 2
   PATH_DIAGONAL_INVERSE = 3
 
-  def __init__(self, members, direction):
+  def __init__(self, moves, direction):
     self.direction = direction
-    self.members = members
-
-  def contains(self, square):
-    return square in self.members
-
-  def remove(self, square):
-    if self.contains(square):
-      self.members.remove(square)
-      return True
-    else:
-      return False
-
-  def add(self, square):
-    self.members.append(square)
+    self.moves = moves
 
   def rank(self):
-    return len(self.members)
+    return len(self.moves)
 
   def last(self):
-    return self.members[-1]
+    return self.moves[-1]
 
 
 class Player:
@@ -133,47 +124,62 @@ class Player:
     self.paths = []
     self.occupations = []
 
-  def check_win_block(square):
+  def check_win_block(self,square):
+    '''
+    Checks a square being played lies within a single move path we are keeping track
+    of. In otherwords, we check only rank-1 paths, otherwise return false
+    '''
     for path in self.paths:
       if path.rank() > 1:
         return False
-      elif path.contains(square):
+      elif square in path.moves:
         return True
 
-  def move(game,opponent,x = None,y = None):
-    board = game.board
+  def move(self,game,board,opponent,x = None,y = None):
+    '''
+    Performs a move on a specified board for a specified game against a specified opponent.
+    User moves are treated without any extra consideration. Computer moves, however, have more
+    logic behind them.
+
+    Special care is taken on each move the computer makes, especially the first move. Above
+    all else, the computer prefers corner placement. If the computer moves second and the 
+    human player has chosen a corner, the computer places a mark at an available "center"
+    square within the line of sight of the human move. This should open an opportunity to 
+    force the human player into a block instead of a split or two-way possible win.
+    '''
     
     if x == None and y == None:
       # A Computer Move
       if not self.occupations:
         if self.marker == 'X':
-          # First Move, Choose 1,1
-          self.occupations.append( board.occupy(1,1,self.marker) )
-          self.strategize(board,opponent,1,1)
+          # First Move, Choose 0,0
+          self.occupations.append( board.occupy(0,0,self.marker) )
+          self.strategize(board,opponent,0,0)
         else:
           # What is the optimal 1st move for O?
-          first_move = opponent.occupations[-1]
+          player_move = opponent.occupations[-1]
           if board.is_corner(first_move):
-            next_x = first_move.x + (1 if first_move.x == 0 else -1)
-            next_y = first_move.y + (1 if first_move.y == 0 else -1)
+            next_x = player_move.x + (1 if player_move.x == 0 else -1)
+            next_y = player_move.y + (1 if player_move.y == 0 else -1)
 
             self.occupations.append( board.occupy(next_x,next_y,self.marker) )
             self.strategize(board,opponent,next_x,next_y)
           else:
-            self.occupations.append( board.occupy(1,1,self.marker) )
-            self.strategize(board,opponent,1,1)
+            self.occupations.append( board.occupy(0,0,self.marker) )
+            self.strategize(board,opponent,0,0)
       else:
         if self.paths:
+          # If the computer has available paths that could result in a win, we attempt to evaluate them
           winning_move = False
           next_move = None
 
           # First thing's first, check for a 1-move opponent win
-          if opponent.paths and opponent.paths[1].rank() == 1:
-            next_move = opponent.paths[1].last()
+          if opponent.paths and opponent.paths[0].rank() == 1:
+            next_move = opponent.paths[0].last()
             winning_move = self.check_win_block(next_move)
           else:
-            next_move = self.paths[1].last()
-            winning_move = self.paths[1].rank() == 1
+            next_move = self.paths[0].last()
+            winning_move = self.paths[0].rank() == 1 # We will win on this move of path where rank = 1
 
           self.occupations.append( board.occupy(next_move.x,next_move.y,self.marker) )
           self.strategize(board,opponent,next_move.x,next_move.y)
@@ -182,9 +188,8 @@ class Player:
             game.complete(Game.STATE_COMPLETE,self.marker)
         else:
           if opponent.paths:
-            # The case where we don't have any more paths to look at
-            # but our opponent does
-            next_move = opponent.paths[1].last()
+            # The case where we don't have any more paths to look at but our opponent does
+            next_move = opponent.paths[0].last()
             winning_move = False
 
             if next_move:
@@ -195,80 +200,96 @@ class Player:
               if winning_move:
                 game.complete(Game.STATE_COMPLETE,self.marker)
             else:
+              # If for some reason the player has an empty path and we have no paths, then 
+              # the game is a draw
               game.complete(Game.STATE_DRAW)
           else:
+            # If this is not the first move and neither player has paths to win on, the game
+            # is deemed a draw
             game.complete(Game.STATE_DRAW)
     else:
       # A User Move
       self.occupations.append( board.occupy(x,y,self.marker) )
       self.strategize(board,opponent,x,y)
-      opponent.move(game,self)
+      opponent.move(game,board,self)
 
       # TODO: Check if the move resulted in a win
 
   def sort_paths(self):
+    '''Ranks and orders win paths by the number of moves until completion'''
     self.paths.sort(key=lambda path: path.rank())
 
   def destrategize(self, board, opponent, x, y):
+    '''
+    Negatively impacts an opponents win paths with a move placed in the specified coordinate
+    x,y. By doing so, we eliminate any winnable paths that contain this point and that have a 
+    line of sight through this point.
+    '''
     for path in opponent.paths:
-      if path.contains( board.squares[x][y] ):
+      if board.squares[x][y] in path.moves:
         opponent.paths.remove(path)
     opponent.sort_paths()
 
   def strategize(self, board, opponent, x, y):
+    '''
+    The core logic of maintaining player strategies. The general logic is to first check if our
+    move is already within a win path. If it is, remove the point from the path and mark the path
+    to be ignored from further path calculations. Once this is done, we check the Squares that are
+    within the line of sight of the specified coordinate x,y. If we encounter an opponent marker,
+    we ignore the path. If we encounter our own marker, we ignore it. If we encounter an open space
+    we add it to the direction-path.
+    '''
     self.destrategize(board,opponent,x,y)
-    ignore = { \
-      Path.PATH_HORIZONTAL:False, \
-      Path.PATH_VERTICAL:False, \
-      Path.PATH_DIAGONAL:False, \
-      Path.PATH_DIAGONAL_INVERSE:False }
+    ignore = [] # Array of ignoring path directions
 
+    # Remove this point from any existing path
     square = board.squares[x][y]
     for path in self.paths:
-      if path.contains(square):
-        path.remove(square)
-        ignore[path.direction] = True
+      if square in path.moves:
+        path.moves.remove(square)
+        ignore.append(path.direction)
 
-    members = { \
-      Path.PATH_HORIZONTAL:[], \
-      Path.PATH_VERTICAL:[], \
-      Path.PATH_DIAGONAL:[], \
-      Path.PATH_DIAGONAL_INVERSE:[] }
+    # Dictionary of Direction:Moves that are winnable
+    members = { Path.PATH_HORIZONTAL:[], Path.PATH_VERTICAL:[], Path.PATH_DIAGONAL:[], Path.PATH_DIAGONAL_INVERSE:[] }
 
     for i in range(board.size):
-      if not ignore[Path.PATH_HORIZONTAL] and members[Path.PATH_HORIZONTAL] != None:
+      # Check the row containing this particular point
+      if Path.PATH_HORIZONTAL not in ignore:
         if board.is_played(x,i):
           if board.squares[x][i] in opponent.occupations:
-            members[Path.PATH_HORIZONTAL] = None
+            ignore.append(Path.PATH_HORIZONTAL)            
         else:
             members[Path.PATH_HORIZONTAL].append( board.squares[x][i] )
 
-      if not ignore[Path.PATH_VERTICAL] and members[Path.PATH_VERTICAL] != None:
+      # Check the column containing this particular point
+      if Path.PATH_VERTICAL not in ignore:
         if board.is_played(i,y):
           if board.squares[i][y] in opponent.occupations:
-            members[Path.PATH_VERTICAL] = None
+            ignore.append(Path.PATH_VERTICAL)
         else:
             members[Path.PATH_VERTICAL].append( board.squares[i][y] )
 
       if x == y:
-        if not ignore[Path.PATH_DIAGONAL] and members[Path.PATH_DIAGONAL] != None:
+        # Only check the diagonal path if the point lies on the x=y diagonal (top-left to bottom-right)
+        if Path.PATH_DIAGONAL not in ignore:
           if board.is_played(i,i):
             if board.squares[i][i] in opponent.occupations:
-              members[Path.PATH_DIAGONAL] = None
+              ignore.append(Path.PATH_DIAGONAL)
           else:
               members[Path.PATH_DIAGONAL].append( board.squares[i][i] )
 
       if y == board.size - x - 1:
+        # Only check the inverse diagonal path if the point lies on the y=size-x-1 diagonal (bottom-left to top-right)
         inverse = board.size - x - 1
-        if not ignore[Path.PATH_DIAGONAL_INVERSE] and members[Path.PATH_DIAGONAL_INVERSE] != None:
+        if Path.PATH_DIAGONAL_INVERSE not in ignore:
           if board.is_played(i,inverse):
             if board.squares[i][inverse] in opponent.occupations:
-              members[Path.PATH_DIAGONAL_INVERSE] = None
+              ignore.append(Path.PATH_DIAGONAL_INVERSE)
           else:
               members[Path.PATH_DIAGONAL_INVERSE].append( board.squares[i][inverse] )
 
-    for direction,path in members:
-      if path and len(path) > 0:
+    for direction,path in members.items():
+      if path and len(path) > 0 and direction not in ignore:
         self.paths.append( Path(path,direction) )
 
     self.sort_paths()
