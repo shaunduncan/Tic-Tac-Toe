@@ -87,6 +87,9 @@ class Square:
     self.y = y
     self.placemark = None
 
+  def __repr__(self):
+    return "(%s,%s)" % (self.x,self.y)
+
   def __str__(self):
     return ' ' if self.placemark == None else self.placemark
 
@@ -113,6 +116,9 @@ class Path:
 
   def last(self):
     return self.moves[-1]
+
+  def __repr__(self):
+    return 'Path(%s): %s' % (self.rank(),str(self.moves))
 
 
 class Player:
@@ -288,7 +294,7 @@ class Player:
 
       if y == board.size - x - 1:
         # Only check the inverse diagonal path if the point lies on the y=size-x-1 diagonal (bottom-left to top-right)
-        inverse = board.size - x - 1
+        inverse = board.size - i - 1
         if Path.PATH_DIAGONAL_INVERSE not in ignore:
           if board.is_played(i,inverse):
             if board.squares[i][inverse] in opponent.occupations:
