@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from random import choice
 
 class Game:
   '''
@@ -76,6 +77,14 @@ class Game:
   def squares_available(self):
     '''Squares are available if the squares_played counter < size^2'''
     return self.squares_played < pow(self.size,2)
+
+  def available_corner(self):
+    x = choice([0,self.size-1])
+    y = choice([0,self.size-1])
+    while self.is_played(x,y):
+      x = choice([0,self.size-1])
+      y = choice([0,self.size-1])
+    return (x,y)
 
   def print_board(self):
     rows = []
@@ -191,10 +200,12 @@ class Player:
       # A Computer Move
       if not self.occupations:
         if self.marker == 'X':
-          # First Move, Choose 0,0
-          game.occupy(0,0,self.marker)
-          self.occupations.append( game.square(0,0) )
-          self.strategize(game,opponent,0,0)
+          # First Move, Choose a random corner
+          x,y = game.available_corner()
+
+          game.occupy(x,y,self.marker)
+          self.occupations.append( game.square(x,y) )
+          self.strategize(game,opponent,x,y)
         else:
           # What is the optimal 1st move for O?
           player_move = opponent.occupations[-1]
@@ -206,9 +217,12 @@ class Player:
             self.occupations.append( game.square(next_x,next_y) )
             self.strategize(game,opponent,next_x,next_y)
           else:
-            game.occupy(0,0,self.marker)
-            self.occupations.append( game.square(0,0) )
-            self.strategize(game,opponent,0,0)
+            # Choose any corner
+            x,y = game.available_corner()
+
+            game.occupy(x,y,self.marker)
+            self.occupations.append( game.square(x,y) )
+            self.strategize(game,opponent,x,y)
       else:
         if self.paths:
           # If the computer has available paths that could result in a win, we attempt to evaluate them
