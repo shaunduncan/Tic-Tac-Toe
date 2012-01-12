@@ -57,6 +57,19 @@ class Game:
     x,y = square.x, square.y
     return (x == 0 and (y == 0 or y == self.size - 1)) or (y == 0 and (x == 0 or x == self.size - 1))
 
+  def is_edge(self, square):
+    '''
+    Checks to see if a square is a non-corner edge. In other words, a square is on the 
+    edge if x is the first or last row and y is between (0,size) - OR - y is the first 
+    or last column and x is between (0,size)
+    '''
+    x,y = square.x, square.y
+    return (x in [0,self.size-1] and y in range(1,self.size-1)) or (x in range(1,self.size-1) and y in [0,self.size-1])
+
+  def is_any_edge(self, square):
+    '''Checks to see if a square is along the edge of the board (corners and edges)'''
+    return self.is_edge(square) or self.is_corner(square)
+
   def coordinate_key(self, x, y):
     '''Utility to transform an x,y into a 1D list offset'''
     return (size * x) + y
@@ -79,11 +92,17 @@ class Game:
     return self.squares_played < pow(self.size,2)
 
   def available_corner(self):
-    x = choice([0,self.size-1])
-    y = choice([0,self.size-1])
+    '''Picks an unplayed corner at random'''
+    x,y = choice([0,self.size-1]), choice([0,self.size-1])
     while self.is_played(x,y):
-      x = choice([0,self.size-1])
-      y = choice([0,self.size-1])
+      x,y = choice([0,self.size-1]), choice([0,self.size-1])
+    return (x,y)
+
+  def available_center(self):
+    '''Picks an unplayed "center" or non-edge square available'''
+    x,y = choice(range(1,self.size-1)), choice(range(1,self.size-1))
+    while self.is_played(x,y):
+      x,y = choice(range(1,self.size-1)), choice(range(1,self.size-1))
     return (x,y)
 
   def print_board(self):
@@ -199,48 +218,50 @@ class Player:
     if x == None and y == None:
       # A Computer Move
       if not self.occupations:
-        if self.marker == 'X':
-          # First Move, Choose a random corner
+        if self.marker == 'O' and game.is_any_edge(opponent.occupations[-1]):
+          # Choose a nearby "center" square from the opponent's first move
+          x,y = game.available_center()
+        else:
+          # Prefer a corner on the first move
           x,y = game.available_corner()
 
-          game.occupy(x,y,self.marker)
-          self.occupations.append( game.square(x,y) )
-          self.strategize(game,opponent,x,y)
-        else:
-          # What is the optimal 1st move for O?
-          player_move = opponent.occupations[-1]
-          if game.is_corner(player_move):
-            next_x = player_move.x + (1 if player_move.x == 0 else -1)
-            next_y = player_move.y + (1 if player_move.y == 0 else -1)
+        game.occupy(x,y,self.marker)
+        self.occupations.append( game.square(x,y) )
+        self.strategize(game,opponent,x,y)
+      elif self.paths or opponent.paths:
+        # If there are any available strategized paths, use these to our advantage
+        winning_move = False
+        next_move = None
 
-            game.occupy(next_x,next_y,self.marker)
-            self.occupations.append( game.square(next_x,next_y) )
-            self.strategize(game,opponent,next_x,next_y)
-          else:
-            # Choose any corner
-            x,y = game.available_corner()
+        # First thing's first, check for a 1-move win for this player. Then check if we need to block.
+        # If all else fails, grab the next move from the win path set. As a last resort, steal a move 
+        # from the opponent. If no next move is found, all winning moves have been blocked and the game
+        # is a draw
+        if self.paths and self.paths[0].rank() == 1:
+          next_move = self.paths[0][0]
+          winning_move = True
+        elif opponent.paths and opponent.paths[0].rank() == 1:
+          next_move = opponent.paths[0][0]
+          winning_move = self.check_winning_move(next_move)
+        elif self.paths:
+          # This move won't win, but we need to take care of our placement since 1st move placement
+          # is randomized. Since points in paths are in sorted order from i -> game.size, we want to 
+          # maximize the distance between the last point and this point
+          last_move = self.occupations[-1]
+          next_path = self.paths[0]
+          half = game.size / 2
+          preferred_choice = -1
 
-            game.occupy(x,y,self.marker)
-            self.occupations.append( game.square(x,y) )
-            self.strategize(game,opponent,x,y)
-      else:
-        if self.paths:
-          # If the computer has available paths that could result in a win, we attempt to evaluate them
-          winning_move = False
-          next_move = None
+          if (next_path.direction in [Path.HORIZONTAL,Path.DIAGONAL_INVERSE] and last_move.y > half) or \
+             (next_path.direction in [Path.VERTICAL,Path.DIAGONAL] and last_move.x > half):
+             preferred_choice = 0          
+          next_move = self.paths[0][preferred_choice]
+        elif opponent.paths:
+          # Note, that this won't result in a win because we've already covered the case where this
+          # would have been a 1-move win for the computer
+          next_move = opponent.paths[0][-1]
 
-          # First thing's first, check for a 1-move win for this player. Then check if we need to block.
-          # If all else fails, grab the next move from the win path set
-          if self.paths[0].rank() == 1:
-            next_move = self.paths[0][-1]
-            winning_move = True
-          elif opponent.paths and opponent.paths[0].rank() == 1:
-            next_move = opponent.paths[0][-1]
-            winning_move = self.check_winning_move(next_move)
-          else:
-            next_move = self.paths[0][-1]
-            winning_move = False # We won't win...we have already checked if this is a winning move
-
+        if next_move:
           game.occupy(next_move.x,next_move.y,self.marker)
           self.occupations.append( next_move )
           self.strategize(game,opponent,next_move.x,next_move.y)
@@ -248,27 +269,11 @@ class Player:
           if winning_move:
             game.complete(Game.STATE_COMPLETE,self.marker)
         else:
-          if opponent.paths:
-            # The case where we don't have any more paths to look at but our opponent does
-            next_move = opponent.paths[0][-1]
-            winning_move = False
-
-            if next_move:
-              winning_move = self.check_winning_move(next_move)
-              game.occupy(next_move.x,next_move.y,self.marker)
-              self.occupations.append( next_move )
-              self.strategize(game,opponent,next_move.x,next_move.y)
-
-              if winning_move:
-                game.complete(Game.STATE_COMPLETE,self.marker)
-            else:
-              # If for some reason the player has an empty path and we have no paths, then 
-              # the game is a draw
-              game.complete(Game.STATE_DRAW)
-          else:
-            # If this is not the first move and neither player has paths to win on, the game
-            # is deemed a draw
-            game.complete(Game.STATE_DRAW)
+          # If we didn't find any reasonable move to make, the game is a draw
+          game.complete(Game.STATE_DRAW)
+      else:
+        # If this is not the first move and neither player has paths to win on, the game is a draw
+        game.complete(Game.STATE_DRAW)
     else:
       # A User Move
       game.occupy(x,y,self.marker)
@@ -289,7 +294,7 @@ class Player:
 
   def destrategize(self, game, x, y):
     '''
-    Negatively impacts an opponents win paths with a move placed in the specified coordinate
+    Negatively impacts an player's win paths with an opponent move placed in the specified coordinate
     x,y. By doing so, we eliminate any winnable paths that contain this point and that have a 
     line of sight through this point.
     '''
