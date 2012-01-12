@@ -1,5 +1,5 @@
 #!/usr/bin/python -tt
-from random import choice
+from random import shuffle
 
 class Game:
   '''
@@ -93,19 +93,23 @@ class Game:
     '''Squares are available if the squares_played counter < size^2'''
     return self.squares_played < pow(self.size,2)
 
+  def __permute_and_choose_point(self,digit_range):
+    '''Permutes a chooses a random available point (x,y) or (None,None)'''
+    coords = [(x,y) for x in digit_range for y in digit_range]
+    shuffle(coords)
+    for coord in coords:
+      x,y = coord
+      if not self.is_played(x,y):
+        return (x,y)
+    return (None,None)
+
   def available_corner(self):
     '''Picks an unplayed corner at random'''
-    x,y = choice([0,self.size-1]), choice([0,self.size-1])
-    while self.is_played(x,y):
-      x,y = choice([0,self.size-1]), choice([0,self.size-1])
-    return (x,y)
+    return self.__permute_and_choose_point([0,self.size-1])
 
   def available_center(self):
     '''Picks an unplayed "center" or non-edge square available'''
-    x,y = choice(range(1,self.size-1)), choice(range(1,self.size-1))
-    while self.is_played(x,y):
-      x,y = choice(range(1,self.size-1)), choice(range(1,self.size-1))
-    return (x,y)
+    return self.__permute_and_choose_point(range(1,self.size-1))
 
   def print_board(self):
     rows = []
