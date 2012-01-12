@@ -4,77 +4,89 @@ class Game:
   '''
   A Game is the primary component of this application. It is the facilitator of
   user and computer interactions, movements. A Game maintains a state which is
-  one of STATE_IN_PROGRESS, STATE_DRAW, or STATE_COMPLETE
+  one of STATE_IN_PROGRESS, STATE_DRAW, or STATE_COMPLETE. A Game maintains a 
+  board (i.e. a list of playable squares). One should note that a Square is considered
+  "not played" if it's placemark is None.
   '''
   STATE_IN_PROGRESS = 0
   STATE_COMPLETE = 1
   STATE_DRAW = 2
 
   def __init__(self,size):
-    self.board = Board(size)
+    self.board = self.__make_board(size)
     self.state = Game.STATE_IN_PROGRESS
+    self.size = size
     self.winner = None
+    self.squares_played = 0
+
+    # Setup players. By default, computer is first and is X
+    self.computer = Player('X')
+    self.player = Player('O')
+
+  def __make_board(self,size):
+    '''
+    Creates a list of Squares for coordinates x,y within an nxn range. The result
+    is a single list where the index of a particular x,y is (size * x) + 1
+    '''
+    board = []
+    for i in range(size):
+      for j in range(size):
+        board.append(Square(i,j))
+    return board
 
   def play(self, computer_first = True):
     '''Initiate the game'''
     if computer_first:
-      self.computer = Player('X')
-      self.player = Player('O')
-      self.computer.move(self,self.board,self.player)
+      self.computer.move(self,self.player)
     else:
-      self.computer = Player('O')
-      self.player = Player('X')
+      # Update the markers to be the other way around from the default
+      self.computer.marker = 'O'
+      self.player.marker = 'X'
 
   def complete(self, outcome, winner = None):
     '''Completes a game with the specified outcome and optional winner'''
     self.state = outcome
     self.winner = winner
 
-
-class Board:
-  '''
-  A Board is the main component of a Game. It can be thought of as a bookkeeper
-  of sorts for managing game operations. The board will keep track of all squares
-  and those that have been played
-  '''  
-  def __init__(self, size):
-    self.size = size
-    self.squares = []
-    self.played = []
-
-    for i in range(size):
-      self.squares.append([])
-      for j in range(size):
-        self.squares[i].append( Square(i,j) )
-
-  def is_corner(self, x, y = None):
+  def is_corner(self, square):
     '''
-    Checks to see if an x,y position is a board corner or not. There are four corners to check
+    Checks to see if a square is a board corner or not. There are four corners to check
     for: (0,0), (0,size-1), (size-1,0), (size-1,size-1)
     '''
-    if y == None:
-      y = x.y
-      x = x.x
+    x,y = square.x, square.y
     return (x == 0 and (y == 0 or y == self.size - 1)) or (y == 0 and (x == 0 or x == self.size - 1))
+
+  def coordinate_key(self, x, y):
+    '''Utility to transform an x,y into a 1D list offset'''
+    return (size * x) + y
+
+  def square(self,x,y):
+    '''Returns the square at x,y'''
+    return self.board[ self.coordinate_key(x,y) ]
 
   def occupy(self, x, y, marker):
     '''Marks a square at an x,y coordinate with a marker and sets it as having been played'''
-    self.squares[x][y].placemark = marker
-    self.played.append( self.squares[x][y] )
+    self.square(x,y).placemark = marker
+    self.squares_played += 1
 
   def is_played(self, x, y):
     '''Shorthand for checking if an x,y coordinate has been played or not'''
-    return self.squares[x][y] in self.played
+    return self.square(x,y).marked()
 
-  def __str__(self):
+  def squares_available(self):
+    '''Squares are available if the squares_played counter < size^2'''
+    return self.squares_played < pow(self.size,2)
+
+  def print_board(self):
     rows = []
     glue = '\n   ' + ('+'.join(['---' for i in range(self.size)])) + '\n'
     header = '    ' + '   '.join([ str(x) for x in range(self.size) ]) + ' '
 
-    for row in self.squares:
-      rows.append(' ' + str(self.squares.index(row)) + '  ' + (' | '.join([ str(cell) for cell in row ])) + ' ')
+    for row_num in range(self.size):
+      row = self.board[ self.coordinate_key(row_num,0) : self.coordinate_key(row_num,self.size) ]
+      rows.append(' ' + str(row_num) + '  ' + (' | '.join([ str(cell) for cell in row])) + ' ')
 
-    return '\n' + header + '\n' + glue.join(rows) + '\n'
+    print '\n' + header + '\n' + glue.join(rows) + '\n'
     
 
 
@@ -93,6 +105,12 @@ class Square:
 
   def __str__(self):
     return ' ' if self.placemark == None else self.placemark
+
+  def __eq__(self,item):
+    return isinstance(item,Square) and item.x == self.x and item.y == self.y
+
+  def marked(self):
+    return self.placemark != None
 
 
 class Path:
@@ -156,7 +174,7 @@ class Player:
       elif square in path:
         return True
 
-  def move(self,game,board,opponent,x = None,y = None):
+  def move(self,game,opponent,x = None,y = None):
     '''
     Performs a move on a specified board for a specified game against a specified opponent.
     User moves are treated without any extra consideration. Computer moves, however, have more
@@ -174,23 +192,23 @@ class Player:
       if not self.occupations:
         if self.marker == 'X':
           # First Move, Choose 0,0
-          board.occupy(0,0,self.marker)
-          self.occupations.append( board.squares[0][0] )
-          self.strategize(board,opponent,0,0)
+          game.occupy(0,0,self.marker)
+          self.occupations.append( game.square(0,0) )
+          self.strategize(game,opponent,0,0)
         else:
           # What is the optimal 1st move for O?
           player_move = opponent.occupations[-1]
-          if board.is_corner(player_move):
+          if game.is_corner(player_move):
             next_x = player_move.x + (1 if player_move.x == 0 else -1)
             next_y = player_move.y + (1 if player_move.y == 0 else -1)
 
-            board.occupy(next_x,next_y,self.marker)
-            self.occupations.append( board.squares[next_x][next_y] )
-            self.strategize(board,opponent,next_x,next_y)
+            game.occupy(next_x,next_y,self.marker)
+            self.occupations.append( game.square(next_x,next_y) )
+            self.strategize(game,opponent,next_x,next_y)
           else:
-            board.occupy(0,0,self.marker)
-            self.occupations.append( board.squares[0][0] )
-            self.strategize(board,opponent,0,0)
+            game.occupy(0,0,self.marker)
+            self.occupations.append( game.square(0,0) )
+            self.strategize(game,opponent,0,0)
       else:
         if self.paths:
           # If the computer has available paths that could result in a win, we attempt to evaluate them
@@ -209,9 +227,9 @@ class Player:
             next_move = self.paths[0][-1]
             winning_move = False # We won't win...we have already checked if this is a winning move
 
-          board.occupy(next_move.x,next_move.y,self.marker)
+          game.occupy(next_move.x,next_move.y,self.marker)
           self.occupations.append( next_move )
-          self.strategize(board,opponent,next_move.x,next_move.y)
+          self.strategize(game,opponent,next_move.x,next_move.y)
 
           if winning_move:
             game.complete(Game.STATE_COMPLETE,self.marker)
@@ -223,9 +241,9 @@ class Player:
 
             if next_move:
               winning_move = self.check_winning_move(next_move)
-              board.occupy(next_move.x,next_move.y,self.marker)
+              game.occupy(next_move.x,next_move.y,self.marker)
               self.occupations.append( next_move )
-              self.strategize(board,opponent,next_move.x,next_move.y)
+              self.strategize(game,opponent,next_move.x,next_move.y)
 
               if winning_move:
                 game.complete(Game.STATE_COMPLETE,self.marker)
@@ -239,34 +257,36 @@ class Player:
             game.complete(Game.STATE_DRAW)
     else:
       # A User Move
-      board.occupy(x,y,self.marker)
-      self.occupations.append( board.squares[x][y] )
+      game.occupy(x,y,self.marker)
+      self.occupations.append( game.square(x,y) )
 
-      if self.check_winning_move(board.squares[x][y]):
+      if self.check_winning_move(game.square(x,y)):
         game.complete(Game.STATE_COMPLETE,self.marker)
-      elif len(board.played) == pow(board.size,2):
+      elif not game.squares_available():
         # No more moves available, game is a draw
         game.complete(Game.STATE_DRAW)
       else:
-        self.strategize(board,opponent,x,y)
-        opponent.move(game,board,self)
+        self.strategize(game,opponent,x,y)
+        opponent.move(game,self)
 
   def sort_paths(self):
     '''Ranks and orders win paths by the number of moves until completion'''
     self.paths.sort(key=lambda path: path.rank())
 
-  def destrategize(self, board, opponent, x, y):
+  def destrategize(self, game, x, y):
     '''
     Negatively impacts an opponents win paths with a move placed in the specified coordinate
     x,y. By doing so, we eliminate any winnable paths that contain this point and that have a 
     line of sight through this point.
     '''
-    for path in opponent.paths:
-      if board.squares[x][y] in path:
-        opponent.paths.remove(path)
-    opponent.sort_paths()
+    valid_paths = []
+    for path in self.paths:
+      if game.square(x,y) not in path:
+        valid_paths.append(path)
+    self.paths = valid_paths
+    self.sort_paths()
 
-  def strategize(self, board, opponent, x, y):
+  def strategize(self, game, opponent, x, y):
     '''
     The core logic of maintaining player strategies. The general logic is to first check if our
     move is already within a win path. If it is, remove the point from the path and mark the path
@@ -278,17 +298,17 @@ class Player:
     def __check_square(x,y,direction):
       '''A utility function for strategize() that prevents repetition and simplifies the code'''
       if direction not in ignore:
-        if board.is_played(x,y):
-          if board.squares[x][y] in opponent.occupations:
+        if game.is_played(x,y):
+          if game.square(x,y) in opponent.occupations:
             ignore.append(direction)
         else:
-          members[direction].append(board.squares[x][y])
+          members[direction].append(game.square(x,y))
 
-    self.destrategize(board,opponent,x,y)
+    opponent.destrategize(game,x,y)
     ignore = [] # Array of ignoring path directions
 
     # Remove this point from any existing path
-    square = board.squares[x][y]
+    square = game.square(x,y)
     for path in self.paths:
       if square in path:
         path.remove(square)
@@ -297,14 +317,14 @@ class Player:
     # Dictionary of Direction:Moves that are winnable
     members = { Path.HORIZONTAL:[], Path.VERTICAL:[], Path.DIAGONAL:[], Path.DIAGONAL_INVERSE:[] }
 
-    for i in range(board.size):
+    for i in range(game.size):
       # Check the row, column and diagonals containing this particular point
       __check_square(x,i,Path.HORIZONTAL)
       __check_square(i,y,Path.VERTICAL)
       if y == x:
         __check_square(i,i,Path.DIAGONAL)
-      if y == board.size - x - 1:
-        __check_square(i,board.size - i - 1,Path.DIAGONAL_INVERSE)
+      if y == game.size - x - 1:
+        __check_square(i,game.size - i - 1,Path.DIAGONAL_INVERSE)
 
     for direction,path in members.items():
       if path and direction not in ignore:
@@ -327,11 +347,7 @@ if __name__ == '__main__':
     return coord  
 
   try:
-    print '''
-+------------------------------------------------------------------------------+
-|                         Welcome to Tic-Tac-Toe!                              |
-+------------------------------------------------------------------------------+
-'''
+    print '\n[ TIC TAC TOE]\n'
     while True:
       size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
 
@@ -364,22 +380,22 @@ if __name__ == '__main__':
       print '\nGOOD LUCK!\n'
       game.play(first)
       while game.state == Game.STATE_IN_PROGRESS:
-        print game.board
+        game.print_board()
         if game.computer.occupations:
           print "My last move was at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
         print "Now it's your move"
 
         move = []
         while not move:
-          move = [ input_coordinate('row',game.board.size-1), input_coordinate('column',game.board.size-1) ]
-          if game.board.is_played(move[0],move[1]):
+          move = [ input_coordinate('row',game.size-1), input_coordinate('column',game.size-1) ]
+          if game.is_played(move[0],move[1]):
             print "Oops. The position (%s,%s) is unavailable" % tuple(move)
             move = []
           else:
             print "Making move at (%s,%s)" % tuple(move)
-            game.player.move(game,game.board,game.computer,move[0],move[1])
+            game.player.move(game,game.computer,move[0],move[1])
             print "[ END TURN ]"
-      print game.board
+      game.print_board()
       if game.state == Game.STATE_DRAW:
         print 'The game is a draw!\n'
       else:
