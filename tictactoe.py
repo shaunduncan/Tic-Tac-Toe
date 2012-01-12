@@ -55,7 +55,9 @@ class Game:
     for: (0,0), (0,size-1), (size-1,0), (size-1,size-1)
     '''
     x,y = square.x, square.y
-    return (x == 0 and (y == 0 or y == self.size - 1)) or (y == 0 and (x == 0 or x == self.size - 1))
+    return (x == 0 and (y == 0 or y == self.size - 1)) or \
+           (y == 0 and (x == 0 or x == self.size - 1)) or \
+           (x == self.size - 1 and y == self.size - 1)
 
   def is_edge(self, square):
     '''
@@ -72,7 +74,7 @@ class Game:
 
   def coordinate_key(self, x, y):
     '''Utility to transform an x,y into a 1D list offset'''
-    return (size * x) + y
+    return (self.size * x) + y
 
   def square(self,x,y):
     '''Returns the square at x,y'''
@@ -80,7 +82,7 @@ class Game:
 
   def occupy(self, x, y, marker):
     '''Marks a square at an x,y coordinate with a marker and sets it as having been played'''
-    self.square(x,y).placemark = marker
+    self.square(x,y).mark(marker)
     self.squares_played += 1
 
   def is_played(self, x, y):
@@ -137,6 +139,9 @@ class Square:
   def __eq__(self,item):
     return isinstance(item,Square) and item.x == self.x and item.y == self.y
 
+  def mark(self,marker):
+    self.placemark = marker
+
   def marked(self):
     return self.placemark != None
 
@@ -167,14 +172,8 @@ class Path:
   def __getitem__(self, key):
     return self.squares[key]
 
-  def __setitem__(self, key, value):
-    self.squares[key] = value
-
-  def __delitem__(self, key):
-    del self.squares[key]
-
   def remove(self, square):
-    self.squares.remove(square)
+    return self.squares.remove(square)
 
   def __repr__(self):
     return 'Path(%s): %s' % (self.rank(),str(self.squares))
