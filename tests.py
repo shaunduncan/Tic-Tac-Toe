@@ -117,6 +117,20 @@ class TestGame(unittest.TestCase):
     self.assertFalse( self.game.is_bottom_edge(Square(1,1)) )
     self.assertFalse( self.game.is_bottom_edge(Square(0,1)) )
 
+  def test_is_lr_edge(self):
+    '''Checks L/R edge squares'''
+    self.assertTrue( self.game.is_lr_edge(Square(0,0)) )
+    self.assertTrue( self.game.is_lr_edge(Square(2,2)) )
+    self.assertFalse( self.game.is_lr_edge(Square(1,1)) )
+    self.assertFalse( self.game.is_lr_edge(Square(0,1)) )
+
+  def test_is_tb_edge(self):
+    '''Checks T/B edge squares'''
+    self.assertTrue( self.game.is_tb_edge(Square(0,0)) )
+    self.assertTrue( self.game.is_tb_edge(Square(2,2)) )
+    self.assertFalse( self.game.is_tb_edge(Square(1,1)) )
+    self.assertFalse( self.game.is_tb_edge(Square(1,0)) )
+
   def test_is_corner(self):
     '''The corners are (0,0), (0,size-1), (size-1,0), and (size-1,size-1)'''
     self.assertTrue( self.game.is_corner(Square(0,0)) )
