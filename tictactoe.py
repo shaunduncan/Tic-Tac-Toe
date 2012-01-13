@@ -257,6 +257,8 @@ class Player:
         # If there are any available strategized paths, use these to our advantage
         winning_move = False
         next_move = None
+        o_first = opponent.occupations[0]
+        o_last = opponent.occupations[-1]
 
         # First thing's first, check for a 1-move win for this player. Then check if we need to block.
         # If all else fails, grab the next move from the win path set. As a last resort, steal a move 
@@ -268,39 +270,23 @@ class Player:
         elif opponent.paths and opponent.paths[0].rank() == 1:
           next_move = opponent.paths[0][0]
           winning_move = self.check_winning_move(next_move)
-        elif self.marker == 'O' and len(self.occupations) == 1 and \
-          game.is_edge(opponent.occupations[0]) and \
-          ( \
-           ( 
-             game.is_left_edge(opponent.occupations[0]) and  \
-             ( game.is_top_edge(opponent.occupations[1]) or game.is_bottom_edge(opponent.occupations[1]) ) and \
-             opponent.occupations[0].y < opponent.occupations[1].y \
-           ) or \
-           ( \
-             game.is_right_edge(opponent.occupations[0]) and  \
-             ( game.is_top_edge(opponent.occupations[1]) or game.is_bottom_edge(opponent.occupations[1]) ) and \
-             opponent.occupations[0].y > opponent.occupations[1].y \
-           ) or \
-           ( \
-             game.is_top_edge(opponent.occupations[0]) and  \
-             ( game.is_left_edge(opponent.occupations[1]) or game.is_right_edge(opponent.occupations[1]) ) and \
-             opponent.occupations[0].x < opponent.occupations[1].x \
-           ) or \
-           ( \
-             game.is_bottom_edge(opponent.occupations[0]) and  \
-             ( game.is_left_edge(opponent.occupations[1]) or game.is_right_edge(opponent.occupations[1]) ) and \
-             opponent.occupations[0].x > opponent.occupations[1].x \
-           ) \
-          ):
+        elif ( 
+               self.marker == 'O' and len(self.occupations) == 1 and game.is_edge(o_first) and 
+               ( 
+                 (game.is_left_edge(o_first)   and o_first.y < o_last.y and ( game.is_top_edge(o_last)  or game.is_bottom_edge(o_last) )) or
+                 (game.is_right_edge(o_first)  and o_first.y > o_last.y and ( game.is_top_edge(o_last)  or game.is_bottom_edge(o_last) )) or
+                 (game.is_top_edge(o_first)    and o_first.x < o_last.x and ( game.is_left_edge(o_last) or game.is_right_edge(o_last)  )) or
+                 (game.is_bottom_edge(o_first) and o_first.x > o_last.x and ( game.is_left_edge(o_last) or game.is_right_edge(o_last)  ))
+               )
+             ):
           # This is a VERY specialized case where a) the computer goes second b) the player is 
           # attempting to win in two directions. The strategy in this case is to play the square 
-          # between them
-          first = opponent.occupations[0]
-          second = opponent.occupations[1]
-          if game.is_left_edge(first) or game.is_right_edge(first):
-            next_move = game.square( second.x, first.y )
+          # between them, which will be a corner. We won't have to worry about a win here, this is
+          # only move #2
+          if game.is_left_edge(o_first) or game.is_right_edge(o_first):
+            next_move = game.square( o_last.x, o_first.y )
           else:
-            next_move = game.square( first.x, second.y )
+            next_move = game.square( o_first.x, o_last.y )
         elif self.paths:
           # This move won't win, but we need to take care of our placement since 1st move placement
           # is randomized. Since points in paths are in sorted order from i -> game.size, we want to 
