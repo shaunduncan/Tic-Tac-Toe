@@ -68,6 +68,28 @@ class Game:
     x,y = square.x, square.y
     return (x in [0,self.size-1] and y in range(1,self.size-1)) or (x in range(1,self.size-1) and y in [0,self.size-1])
 
+  def __left_or_top_edge(self,a,b):
+    return a == 0 and b in range(self.size)
+
+  def __right_or_bottom_edge(self,a,b):
+    return a == self.size - 1 and b in range(self.size)
+
+  def is_top_edge(self, square):
+    '''Checks if a square is on the top edge of the board'''
+    return self.__left_or_top_edge(square.x,square.y)
+    
+  def is_left_edge(self, square):
+    '''Checks if a square is on the left edge of the board'''
+    return self.__left_or_top_edge(square.y,square.x)
+
+  def is_bottom_edge(self,square):
+    '''Checks if a square is on the bottom edge of the board'''
+    return self.__right_or_bottom_edge(square.x,square.y)
+    
+  def is_right_edge(self, square):
+    '''Checks if a square is on the left edge of the board'''
+    return self.__right_or_bottom_edge(square.y,square.x)
+
   def is_any_edge(self, square):
     '''Checks to see if a square is along the edge of the board (corners and edges)'''
     return self.is_edge(square) or self.is_corner(square)
@@ -246,6 +268,39 @@ class Player:
         elif opponent.paths and opponent.paths[0].rank() == 1:
           next_move = opponent.paths[0][0]
           winning_move = self.check_winning_move(next_move)
+        elif self.marker == 'O' and len(self.occupations) == 1 and \
+          game.is_edge(opponent.occupations[0]) and \
+          ( \
+           ( 
+             game.is_left_edge(opponent.occupations[0]) and  \
+             ( game.is_top_edge(opponent.occupations[1]) or game.is_bottom_edge(opponent.occupations[1]) ) and \
+             opponent.occupations[0].y < opponent.occupations[1].y \
+           ) or \
+           ( \
+             game.is_right_edge(opponent.occupations[0]) and  \
+             ( game.is_top_edge(opponent.occupations[1]) or game.is_bottom_edge(opponent.occupations[1]) ) and \
+             opponent.occupations[0].y > opponent.occupations[1].y \
+           ) or \
+           ( \
+             game.is_top_edge(opponent.occupations[0]) and  \
+             ( game.is_left_edge(opponent.occupations[1]) or game.is_right_edge(opponent.occupations[1]) ) and \
+             opponent.occupations[0].x < opponent.occupations[1].x \
+           ) or \
+           ( \
+             game.is_bottom_edge(opponent.occupations[0]) and  \
+             ( game.is_left_edge(opponent.occupations[1]) or game.is_right_edge(opponent.occupations[1]) ) and \
+             opponent.occupations[0].x > opponent.occupations[1].x \
+           ) \
+          ):
+          # This is a VERY specialized case where a) the computer goes second b) the player is 
+          # attempting to win in two directions. The strategy in this case is to play the square 
+          # between them
+          first = opponent.occupations[0]
+          second = opponent.occupations[1]
+          if game.is_left_edge(first) or game.is_right_edge(first):
+            next_move = game.square( second.x, first.y )
+          else:
+            next_move = game.square( first.x, second.y )
         elif self.paths:
           # This move won't win, but we need to take care of our placement since 1st move placement
           # is randomized. Since points in paths are in sorted order from i -> game.size, we want to 
@@ -351,7 +406,6 @@ class Player:
     for direction,path in members.items():
       if path and direction not in ignore:
         self.paths.append( Path(path,direction) )
-
     self.sort_paths()
 
 
