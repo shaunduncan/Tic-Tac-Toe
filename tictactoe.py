@@ -90,6 +90,14 @@ class Game:
     '''Checks if a square is on the left edge of the board'''
     return self.__right_or_bottom_edge(square.y,square.x)
 
+  def is_lr_edge(self, square):
+    '''Checks if a square is on the left or right edge'''
+    return self.is_left_edge(square) or self.is_right_edge(square)
+
+  def is_tb_edge(self, square):
+    '''Checks if a square is on the top or bottom edge'''
+    return self.is_top_edge(square) or self.is_bottom_edge(square)
+
   def is_any_edge(self, square):
     '''Checks to see if a square is along the edge of the board (corners and edges)'''
     return self.is_edge(square) or self.is_corner(square)
@@ -270,15 +278,9 @@ class Player:
         elif opponent.paths and opponent.paths[0].rank() == 1:
           next_move = opponent.paths[0][0]
           winning_move = self.check_winning_move(next_move)
-        elif ( 
-               self.marker == 'O' and len(self.occupations) == 1 and game.is_edge(o_first) and 
-               ( 
-                 (game.is_left_edge(o_first)   and o_first.y < o_last.y and ( game.is_top_edge(o_last)  or game.is_bottom_edge(o_last) )) or
-                 (game.is_right_edge(o_first)  and o_first.y > o_last.y and ( game.is_top_edge(o_last)  or game.is_bottom_edge(o_last) )) or
-                 (game.is_top_edge(o_first)    and o_first.x < o_last.x and ( game.is_left_edge(o_last) or game.is_right_edge(o_last)  )) or
-                 (game.is_bottom_edge(o_first) and o_first.x > o_last.x and ( game.is_left_edge(o_last) or game.is_right_edge(o_last)  ))
-               )
-             ):
+        elif ( self.marker == 'O' and len(self.occupations) == 1 and game.is_edge(o_first) and 
+               ( (o_first.y != o_last.y and game.is_lr_edge(o_first) and game.is_tb_edge(o_last)) or
+                 (o_first.x != o.last.x and game.is_lr_edge(o_last) and game.is_tb_edge(o_first)) )):
           # This is a VERY specialized case where a) the computer goes second b) the player is 
           # attempting to win in two directions. The strategy in this case is to play the square 
           # between them, which will be a corner. We won't have to worry about a win here, this is
@@ -397,7 +399,7 @@ class Player:
 
 if __name__ == '__main__':
   def input_coordinate(row_col, max_val):
-    coord = raw_input("Enter a %s number (0-%s): " % (row_col, max_val))
+    coord = raw_input(">>> Enter a %s number (0-%s): " % (row_col, max_val))
     while type(coord) == str:
       try:
         coord = int(coord)
@@ -405,64 +407,52 @@ if __name__ == '__main__':
           raise ValueError
       except ValueError:
         print "I'm sorry, %s is not a valid input" % coord
-        coord = raw_input("Enter a %s number (0-%s): " % (row_col, max_val))
+        coord = raw_input(">>> Enter a %s number (0-%s): " % (row_col, max_val))
     return coord  
 
   try:
-    print '\n[ TIC TAC TOE]\n'
+    print '[ TIC TAC TOE ]'
     while True:
-      size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
+      size = None
+      while size is None or type(size) == str:
+        size = raw_input('>>> Enter a board size (Minimum 3): ')
+        try:
+          size = int(size)
+          if size < 3:
+            raise ValueError 
+        except ValueError:
+          print "'%s' is not a valid board size" % size
 
-      while type(size) == str:
-        if size.strip() == '':
-          size = 3
-        else:
-          try:
-            size = int(size)
-            if size < 3:
-              raise ValueError 
-          except ValueError:
-            print "I'm sorry, %s is not a valid board size" % size
-            size = raw_input('What size board would you like to play? (Minimum 3, Default 3) ')
-
-      print "Great, I'll set up a %(n)sx%(n)s playing board\n" % { 'n' : size }
+      print "Setting up a %sx%s playing board" % (size,size)
       game = Game(size)
 
-      first = raw_input('Would you like to move first? (Enter 1 or 2): ')
-      while first.upper().strip() not in ['1','2']:
-        print "I'm sorry, %s is an invalid choice" % first
-        first = raw_input("Would you like to move first or second? (Enter 1 or 2): ")
-      first = first.upper().strip() == '2'
-  
-      if first:
-        print "Ok, I'll go first"
-      else:
-        print "That confident, eh? Ok, you'll go first"
-      
-      print '\nGOOD LUCK!\n'
+      first = None
+      while first is None:
+         first = raw_input('>>> Would you like to move first or second? (1 or 2): ')
+         if first.upper().strip() not in ['1','2']:
+           print "'%s' is an invalid choice" % first
+           first = None
+      first = first.upper().strip() == '2' # Should the computer go first?
+
       game.play(first)
       while game.state == Game.STATE_IN_PROGRESS:
         game.print_board()
         if game.computer.occupations:
-          print "My last move was at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
-        print "Now it's your move"
+          print "Last computer move at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
 
         move = []
         while not move:
           move = [ input_coordinate('row',game.size-1), input_coordinate('column',game.size-1) ]
           if game.is_played(move[0],move[1]):
-            print "Oops. The position (%s,%s) is unavailable" % tuple(move)
+            print "The position (%s,%s) is unavailable" % tuple(move)
             move = []
           else:
-            print "Making move at (%s,%s)" % tuple(move)
             game.player.move(game,game.computer,move[0],move[1])
-            print "[ END TURN ]"
       game.print_board()
       if game.state == Game.STATE_DRAW:
-        print 'The game is a draw!\n'
+        print 'The game is a draw!'
       else:
-        print 'Game Over! %s has won!' % game.winner
-        print 'YOU HAVE %s\n' % ('WON' if game.winner == game.player.marker else 'LOST')
+        print 'Game Over! %s has won! YOU HAVE %s' % ( game.winner, ('WON' if game.winner == game.player.marker else 'LOST'))
 
       again = raw_input('Would you like to play again? (Enter y or n): ')
       while again.upper().strip() not in ['Y','N']:
@@ -474,5 +464,4 @@ if __name__ == '__main__':
   except KeyboardInterrupt:
     pass
 
-  print '\nGoodbye! Thanks for playing!'
-  # EOF
+  print 'Goodbye!'
