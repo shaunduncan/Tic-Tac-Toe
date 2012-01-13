@@ -85,6 +85,38 @@ class TestGame(unittest.TestCase):
     self.assertTrue( self.game.is_played(0,0) )
     self.setUp()
 
+  def test_is_left_edge(self):
+    '''Left edge pieces are (0,0), (1,0), (2,0)'''
+    self.assertTrue( self.game.is_left_edge(Square(0,0)) )
+    self.assertTrue( self.game.is_left_edge(Square(1,0)) )
+    self.assertTrue( self.game.is_left_edge(Square(2,0)) )
+    self.assertFalse( self.game.is_left_edge(Square(1,1)) )
+    self.assertFalse( self.game.is_left_edge(Square(0,1)) )
+
+  def test_is_right_edge(self):
+    '''Right edge pieces are (0,2), (1,2), (2,2)'''
+    self.assertTrue( self.game.is_right_edge(Square(0,2)) )
+    self.assertTrue( self.game.is_right_edge(Square(1,2)) )
+    self.assertTrue( self.game.is_right_edge(Square(2,2)) )
+    self.assertFalse( self.game.is_right_edge(Square(1,1)) )
+    self.assertFalse( self.game.is_right_edge(Square(0,1)) )
+
+  def test_is_top_edge(self):
+    '''Top edge pieces are (0,0), (0,1), (0,2)'''
+    self.assertTrue( self.game.is_top_edge(Square(0,0)) )
+    self.assertTrue( self.game.is_top_edge(Square(0,1)) )
+    self.assertTrue( self.game.is_top_edge(Square(0,2)) )
+    self.assertFalse( self.game.is_top_edge(Square(1,1)) )
+    self.assertFalse( self.game.is_top_edge(Square(1,0)) )
+
+  def test_is_bottom_edge(self):
+    '''Bottom edge pieces are (2,0), (2,1), (2,2)'''
+    self.assertTrue( self.game.is_bottom_edge(Square(2,0)) )
+    self.assertTrue( self.game.is_bottom_edge(Square(2,1)) )
+    self.assertTrue( self.game.is_bottom_edge(Square(2,2)) )
+    self.assertFalse( self.game.is_bottom_edge(Square(1,1)) )
+    self.assertFalse( self.game.is_bottom_edge(Square(0,1)) )
+
   def test_is_corner(self):
     '''The corners are (0,0), (0,size-1), (size-1,0), and (size-1,size-1)'''
     self.assertTrue( self.game.is_corner(Square(0,0)) )
