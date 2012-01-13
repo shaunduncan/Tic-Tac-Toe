@@ -55,9 +55,9 @@ class Game:
     for: (0,0), (0,size-1), (size-1,0), (size-1,size-1)
     '''
     x,y = square.x, square.y
-    return (x == 0 and (y == 0 or y == self.size - 1)) or \
-           (y == 0 and (x == 0 or x == self.size - 1)) or \
-           (x == self.size - 1 and y == self.size - 1)
+    return ( (x == 0 and (y == 0 or y == self.size - 1)) or 
+             (y == 0 and (x == 0 or x == self.size - 1)) or 
+             (x == self.size - 1 and y == self.size - 1) )
 
   def is_edge(self, square):
     '''
@@ -296,8 +296,8 @@ class Player:
           half = game.size / 2
           preferred_choice = -1
 
-          if (next_path.direction in [Path.HORIZONTAL,Path.DIAGONAL_INVERSE] and last_move.y > half) or \
-             (next_path.direction in [Path.VERTICAL,Path.DIAGONAL] and last_move.x > half):
+          if ( (next_path.direction in [Path.HORIZONTAL,Path.DIAGONAL_INVERSE] and last_move.y > half) or
+               (next_path.direction in [Path.VERTICAL,Path.DIAGONAL] and last_move.x > half) ):
              preferred_choice = 0          
           next_move = self.paths[0][preferred_choice]
         elif opponent.paths:
