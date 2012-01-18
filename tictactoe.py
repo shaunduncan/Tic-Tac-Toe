@@ -66,37 +66,8 @@ class Game:
         or last column and x is between (0,size)
         '''
         x,y = square.x, square.y
-        return (x in [0,self.size-1] and y in range(1,self.size-1)) or (x in range(1,self.size-1) and y in [0,self.size-1])
-
-    def __left_or_top_edge(self,a,b):
-        return a == 0 and b in range(self.size)
-
-    def __right_or_bottom_edge(self,a,b):
-        return a == self.size - 1 and b in range(self.size)
-
-    def is_top_edge(self, square):
-        '''Checks if a square is on the top edge of the board'''
-        return self.__left_or_top_edge(square.x,square.y)
-        
-    def is_left_edge(self, square):
-        '''Checks if a square is on the left edge of the board'''
-        return self.__left_or_top_edge(square.y,square.x)
-
-    def is_bottom_edge(self,square):
-        '''Checks if a square is on the bottom edge of the board'''
-        return self.__right_or_bottom_edge(square.x,square.y)
-        
-    def is_right_edge(self, square):
-        '''Checks if a square is on the left edge of the board'''
-        return self.__right_or_bottom_edge(square.y,square.x)
-
-    def is_lr_edge(self, square):
-        '''Checks if a square is on the left or right edge'''
-        return self.is_left_edge(square) or self.is_right_edge(square)
-
-    def is_tb_edge(self, square):
-        '''Checks if a square is on the top or bottom edge'''
-        return self.is_top_edge(square) or self.is_bottom_edge(square)
+        return ((x in [0,self.size-1] and y in range(1,self.size-1)) or 
+                (y in [0,self.size-1] and x in range(1,self.size-1)))
 
     def is_any_edge(self, square):
         '''Checks to see if a square is along the edge of the board (corners and edges)'''
@@ -106,9 +77,12 @@ class Game:
         '''Utility to transform an x,y into a 1D list offset'''
         return (self.size * x) + y
 
-    def square(self,x,y):
-        '''Returns the square at x,y'''
-        return self.board[ self.coordinate_key(x,y) ]
+    def square(self,x,y=None):
+        '''Returns the square at x,y or if y is not provided, treat x as a key'''
+        if y == None:
+            return self.board[x]
+        else:
+            return self.board[ self.coordinate_key(x,y) ]
 
     def occupy(self, x, y, marker):
         '''Marks a square at an x,y coordinate with a marker and sets it as having been played'''
@@ -133,9 +107,20 @@ class Game:
                 return (x,y)
         return (None,None)
 
+    def available_square(self):
+        '''Gets any available square'''
+        return self.__permute_and_choose_point(range(self.size))
+
     def available_corner(self):
         '''Picks an unplayed corner at random'''
         return self.__permute_and_choose_point([0,self.size-1])
+
+    def available_edge(self):
+        '''Picks an unplayed edge at random'''
+        for square in self.board:
+            if self.is_edge(square) and not self.is_played(square.x,square.y):
+                return (square.x,square.y)
+        return (None,None)
 
     def available_center(self):
         '''Picks an unplayed "center" or non-edge square available'''
@@ -212,6 +197,50 @@ class Path:
     def __repr__(self):
         return 'Path(%s): %s' % (self.rank(),str(self.squares))
 
+    def line_slope_intersect(self):
+        '''
+        Gets the slope and y-intercept of this path-line if there are more than two points.
+        Because paths are more visually represented rather than by an equation, horizontal
+        lines are analagous to x = <val>, vertical to y = <val>, diagonal to y = x, and
+        diagonal inverse to y = b - x
+        '''
+        if len(self.squares) > 1:
+            pt = self.squares[0]
+
+            if self.direction == Path.DIAGONAL:
+                m = 1
+            elif self.direction == Path.DIAGONAL_INVERSE:
+                m = -1
+            elif self.direction == Path.VERTICAL:
+                m = 0
+            else:
+                m = None
+
+            b = pt.y - (m * pt.x) if m != None else None
+
+            return (m,b)
+        else:
+            return (None,None)
+
+    def intersection(self, path):
+        '''Gets the intersection of self and another path'''
+        if self.direction != path.direction:
+            if Path.HORIZONTAL in [self.direction,path.direction]:
+                # This is a unique case in which one path will have an undefined slope
+                m1,b1 = path.line_slope_intersect() if self.direction == Path.HORIZONTAL else self.line_slope_intersect()
+                x = self.squares[0].x if self.direction == Path.HORIZONTAL else path.squares[0].x
+                y = (m1 * x) + b1
+                return (x,y)
+            else:
+                m0,b0 = self.line_slope_intersect()
+                m1,b1 = path.line_slope_intersect()
+                x = (b0 - b1) / (m1 - m0)
+                y = (m0 * x) + b0
+                return (x,y)
+        else:
+            # These paths are either parallel or equivalent
+            return (None,None)
+        
 
 class Player:
     '''
@@ -262,50 +291,92 @@ class Player:
                 self.occupations.append( game.square(x,y) )
                 self.strategize(game,opponent,x,y)
             elif self.paths or opponent.paths:
-                # If there are any available strategized paths, use these to our advantage
                 winning_move = False
                 next_move = None
-                o_first = opponent.occupations[0]
+
+                # Set these variables as we may or may not need them in the move strategy
+                try:
+                    o_first = opponent.occupations[-2]
+                except:
+                    o_first = opponent.occupations[0]
                 o_last = opponent.occupations[-1]
 
-                # First thing's first, check for a 1-move win for this player. Then check if we need to block.
-                # If all else fails, grab the next move from the win path set. As a last resort, steal a move 
-                # from the opponent. If no next move is found, all winning moves have been blocked and the game
-                # is a draw
+                '''
+                In summary, the move procedure for a computer player is the following:
+                    1) Is a computer win available? WIN
+                    2) Is a player one move from a win? BLOCK
+                    3) Is this our second move as 'O' and has the player taken two corners?
+                       Attempt to draw the player into playing defense
+                    4) Use heuristics to determine an optimal move within computer paths and player paths
+                    5) Choose an available move from either the computer paths or player paths
+                '''
                 if self.paths and self.paths[0].rank() == 1:
                     next_move = self.paths[0][0]
                     winning_move = True
                 elif opponent.paths and opponent.paths[0].rank() == 1:
                     next_move = opponent.paths[0][0]
                     winning_move = self.check_winning_move(next_move)
-                elif ( self.marker == 'O' and len(self.occupations) == 1 and game.is_edge(o_first) and 
-                       ( (o_first.y != o_last.y and game.is_lr_edge(o_first) and game.is_tb_edge(o_last)) or
-                         (o_first.x != o.last.x and game.is_lr_edge(o_last) and game.is_tb_edge(o_first)) )):
-                    # This is a VERY specialized case where a) the computer goes second b) the player is 
-                    # attempting to win in two directions. The strategy in this case is to play the square 
-                    # between them, which will be a corner. We won't have to worry about a win here, this is
-                    # only move #2
-                    if game.is_left_edge(o_first) or game.is_right_edge(o_first):
-                        next_move = game.square( o_last.x, o_first.y )
-                    else:
-                        next_move = game.square( o_first.x, o_last.y )
-                elif self.paths:
-                    # This move won't win, but we need to take care of our placement since 1st move placement
-                    # is randomized. Since points in paths are in sorted order from i -> game.size, we want to 
-                    # maximize the distance between the last point and this point
-                    last_move = self.occupations[-1]
-                    next_path = self.paths[0]
+                elif ( self.marker == 'O' and game.is_corner(o_first) and game.is_corner(o_last) and 
+                        len(self.occupations) == 1 ):
+                    x,y = game.available_edge()
+                    next_move = game.square(x,y)
+                elif self.paths and opponent.paths:
+                    '''
+                    If both the computer and human player have win-paths that are defined, apply some
+                    heuristics to determine what would be the best choice for the computer. What we are 
+                    really looking for here is if there is a move that is both in one of the computer's
+                    win paths and the player's win paths. This would both advance the computer's strategy
+                    and provide a block against the player. Moreover, for performance, we need only concern
+                    ourselves with intersections between opposing paths. If two paths intersect, we increase
+                    the "weight" of the intersection by a value inversely proportional to the minimum rank
+                    of the two intersecting paths. This ensures that intersections in "better" paths will
+                    ultimately result in a win or a block.
+                    '''
+                    weights = {}
+                    for my_path in self.paths:
+                        for opp_path in opponent.paths:
+                            # Get the intersection point
+                            x,y = my_path.intersection(opp_path)
+                            if x != None and y != None and not game.is_played(x,y):
+                                # Only evaluate "legal" moves, i.e. non-occupied squares
+                                key = game.coordinate_key(x,y)
+                                if not weights.has_key(key):
+                                    weights[key] = 0.0
+                                weights[key] += 1.0 / min(my_path.rank(),opp_path.rank())
+
+                    if len(weights.values()) > 0:
+                        # If intersection points were found, locate one with a maximum weight
+                        # It's OK to break after we find one, we have already guaranteed that these are ALL legal moves
+                        max_weight = max(weights.values())
+                        for key,weight in weights.items():
+                            if weight == max_weight:
+                                next_move = game.square(key)
+                                break
+
+                    if next_move == None:
+                        # If no move was found, use a backup of one of the computer's win-path moves
+                        last_move = self.occupations[-1]
+                        next_path = self.paths[0]
+                        half = game.size / 2
+                        preferred_choice = -1
+            
+                        if ( (next_path.direction in [Path.HORIZONTAL,Path.DIAGONAL_INVERSE] and last_move.y > half) or
+                             (next_path.direction in [Path.VERTICAL,Path.DIAGONAL] and last_move.x > half) ):
+                             preferred_choice = 0
+                        next_move = next_path[preferred_choice]
+                    winning_move = self.check_winning_move(next_move)
+                else:
+                    # If all else fails, choose either a move along our next win-path or choose one to block the opponent
+                    # if there are not more suitable paths to follow
+                    last_move = self.occupations[-1] if self.paths else o_last
+                    next_path = self.paths[0] if self.paths else opponent.paths[0]
                     half = game.size / 2
                     preferred_choice = -1
-
+            
                     if ( (next_path.direction in [Path.HORIZONTAL,Path.DIAGONAL_INVERSE] and last_move.y > half) or
                          (next_path.direction in [Path.VERTICAL,Path.DIAGONAL] and last_move.x > half) ):
                          preferred_choice = 0
-                    next_move = self.paths[0][preferred_choice]
-                elif opponent.paths:
-                    # Note, that this won't result in a win because we've already covered the case where this
-                    # would have been a 1-move win for the computer
-                    next_move = opponent.paths[0][-1]
+                    next_move = next_path[preferred_choice]
 
                 if next_move:
                     game.occupy(next_move.x,next_move.y,self.marker)
@@ -372,28 +443,31 @@ class Player:
         opponent.destrategize(game,x,y)
         ignore = [] # Array of ignoring path directions
 
-        # Remove this point from any existing path
+        # Mark any existing path containing this point to be ignored to prevent double paths
         square = game.square(x,y)
         for path in self.paths:
-            if square in path:
+            if path.direction not in ignore and square in path:
                 path.remove(square)
                 ignore.append(path.direction)
 
         # Dictionary of Direction:Moves that are winnable
         members = { Path.HORIZONTAL:[], Path.VERTICAL:[], Path.DIAGONAL:[], Path.DIAGONAL_INVERSE:[] }
+        is_diagonal = (y == x)
+        is_diagonal_inverse = (y == game.size - x - 1)
 
         for i in range(game.size):
             # Check the row, column and diagonals containing this particular point
             __check_square(x,i,Path.HORIZONTAL)
             __check_square(i,y,Path.VERTICAL)
-            if y == x:
+            if is_diagonal:
                 __check_square(i,i,Path.DIAGONAL)
-            if y == game.size - x - 1:
+            if is_diagonal_inverse:
                 __check_square(i,game.size - i - 1,Path.DIAGONAL_INVERSE)
 
         for direction,path in members.items():
             if path and direction not in ignore:
                 self.paths.append( Path(path,direction) )
+
         self.sort_paths()
 
 
@@ -422,6 +496,7 @@ if __name__ == '__main__':
                         raise ValueError 
                 except ValueError:
                     print "'%s' is not a valid board size" % size
+                    size = None
 
             print "Setting up a %sx%s playing board" % (size,size)
             game = Game(size)
@@ -438,7 +513,7 @@ if __name__ == '__main__':
             while game.state == Game.STATE_IN_PROGRESS:
                 game.print_board()
                 if game.computer.occupations:
-                    print "Last computer move at (%s,%s)" % (game.computer.occupations[-1].x, game.computer.occupations[-1].y)
+                    print "Last computer move at %s" % game.computer.occupations[-1].__repr__()
 
                 move = []
                 while not move:
