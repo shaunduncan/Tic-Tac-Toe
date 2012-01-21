@@ -9,3 +9,57 @@ If you don't want to broadcast your intentions by forking this, feel free to clo
 We are a Django shop, but it is not a requirement that you implement your program as a Django app.
 
 (Don't be offended when I don't actually pull. I will clone your repo and inspect it locally when I receive the request. This repo will be left solution-less for obvious reasons.)
+
+
+Requirements:
+This application was built using Python 2.7. No external dependencies are required to run.
+
+
+Running:
+To play an interactive game
+$> python tictactoe.py
+
+To run unit tests. NOTE: Unit tests run 500 simulations of each nxn game board for 3 <= n <= 9. This will take a couple of seconds to complete
+$> python tests.py
+
+
+About:
+I set out to design a solution and algorithm that would not only allow the computer to never 
+lose (i.e. win or force a draw) in the common case of a 3x3 playing board, but would also see
+the same outcome for a playing board of arbitrary size n where n >= 3 and in a reasonable amount
+of time. 
+
+After analyzing the problem, the algorithm I settled on was to design a system that would retain
+a set of winnable paths that would be weighted by how many moves remained to complete the path. 
+This seemed like a very good choice as any nxn playing board would have 2n + 2 paths
+that could be completed for a win. The intention of this decision is to expose a relatively quick
+option to determine a move. However, the only point at which I felt the computer needed to make 
+specific moves were either the first move being an X, or the first two moves being an O. Being an
+X the computer attempts to start off with an advantage. Being an O, the computer attempts to prevent
+this for the human player. In terms of implementation, each path has a direction, a collection of
+board squares, and rank which is analagous to the number of squares needed to complete this path.
+
+The key part of this "win-path" implementation is that each player, both human and computer, must
+maintain a list of paths, sorted by rank, that can be negatively impacted by an opponent's 
+move. For this I decided that upon a move, a player's opponent will update it's win-paths and 
+eliminate ones that contain the point since paths that contain this point will no longer be winnable.
+This opens the opportunity to evaluate other possible winnable paths. On the flip side, whenever a 
+player has selected a move, it's own win-paths will be updated based on the move selected. The 
+general logic for the computer's move selection is the following:
+
+	- Is First Move?
+		- If playing 'O' and Human has played any edge, play any center
+		- Otherwise play a corner
+	- Otherwise:
+		- Is there a win move available? WIN
+		- Does the Human have a win move available? BLOCK
+		- Do both computer and human have paths they can win?
+			- Find the intersections of computer paths and human paths and weight them by rank of the path they are in
+				( This will make sure we either block as many paths as possible or advance as many of ours towards a win as possible )
+			- If there weren't any intersections, grab the next best move from the computer's win paths
+		- Otherwise:
+			- Either grab a next move from our win path if not empty, or the human's	
+	- If no move was found, the game is a draw
+
+At each point a move is made, a check is made against any one move paths to see if it has completed
+a win and thus resulted in a win.
