@@ -29,8 +29,8 @@ class TestPath(unittest.TestCase):
 
     def test_contains(self):
         '''Ensures proper working condition of __contains__'''
-        self.assertIn( Square(0,0), self.diagonal_path )
-        self.assertNotIn( Square(1,0), self.horizontal_path )
+        self.assertTrue( Square(0,0) in self.diagonal_path )
+        self.assertTrue( Square(1,0) not in self.horizontal_path )
 
     def test_getitem(self):
         '''Ensures working order of __getitem__'''
@@ -43,7 +43,7 @@ class TestPath(unittest.TestCase):
         self.assertEquals( self.horizontal_path.rank(), 3 )
         self.horizontal_path.remove( Square(0,0) )
         self.assertEquals( self.horizontal_path.rank(), 2 )
-        self.assertNotIn( Square(0,0), self.horizontal_path )
+        self.assertTrue( Square(0,0) not in self.horizontal_path )
         self.setUp()
 
     def test_line_slope_intersect(self):
@@ -102,8 +102,8 @@ class TestGame(unittest.TestCase):
     def test_board_creation(self):
         '''Ensures the utility method __make_board() is working as it should to create a 1-D list of squares'''
         self.assertEquals( len(self.game.board), 9 )
-        self.assertIn( Square(0,0), self.game.board )
-        self.assertNotIn( Square(10,10), self.game.board )
+        self.assertTrue( Square(0,0) in self.game.board )
+        self.assertTrue( Square(10,10) not in self.game.board )
 
         # The offsets of the list should be (size * x) + y
         self.assertEquals( self.game.coordinate_key(1,2), 5)
@@ -239,7 +239,7 @@ class TestGame(unittest.TestCase):
                     x,y = self.game.available_square()
                     self.game.player.move(self.game,self.game.computer,x,y)
 
-                self.assertIn( self.game.state, [Game.STATE_DRAW,Game.STATE_COMPLETE] )
+                self.assertTrue( self.game.state in [Game.STATE_DRAW,Game.STATE_COMPLETE] )
                 if self.game.state == Game.STATE_COMPLETE:
                     self.assertEquals( self.game.winner, self.game.computer.marker )
                 else:
@@ -288,24 +288,24 @@ class TestPlayer(unittest.TestCase):
         self.assertEquals( len(self.game.player.paths), 3 )
         for path in self.game.player.paths:
             self.assertEquals( path.rank(), 2 )
-            self.assertIn( path.direction, [Path.HORIZONTAL,Path.VERTICAL,Path.DIAGONAL] )
+            self.assertTrue( path.direction in [Path.HORIZONTAL,Path.VERTICAL,Path.DIAGONAL] )
             self.assertNotEquals( path.direction, Path.DIAGONAL_INVERSE )            
             # Check each path and ensure the proper points appear in them
             if path.direction == Path.HORIZONTAL:
-                self.assertIn( Square(0,1), path )
-                self.assertIn( Square(0,2), path )
-                self.assertNotIn( Square(2,2), path )
-                self.assertNotIn( Square(0,0), path )
+                self.assertTrue( Square(0,1) in path )
+                self.assertTrue( Square(0,2) in path )
+                self.assertTrue( Square(2,2) not in path )
+                self.assertTrue( Square(0,0) not in path )
             elif path.direction == Path.VERTICAL:
-                self.assertIn( Square(1,0), path )
-                self.assertIn( Square(2,0), path )
-                self.assertNotIn( Square(2,2), path )
-                self.assertNotIn( Square(0,0), path )
+                self.assertTrue( Square(1,0) in path )
+                self.assertTrue( Square(2,0) in path )
+                self.assertTrue( Square(2,2) not in path )
+                self.assertTrue( Square(0,0) not in path )
             elif path.direction == Path.DIAGONAL:
-                self.assertIn( Square(1,1), path )
-                self.assertIn( Square(2,2), path )
-                self.assertNotIn( Square(1,0), path )
-                self.assertNotIn( Square(0,0), path )
+                self.assertTrue( Square(1,1) in path )
+                self.assertTrue( Square(2,2) in path )
+                self.assertTrue( Square(1,0) not in path )
+                self.assertTrue( Square(0,0) not in path )
 
         # Reset and check the center which will have paths that contain ALL the edge/corners
         self.setUp()
@@ -318,7 +318,7 @@ class TestPlayer(unittest.TestCase):
                 path_squares.append(square)
                 self.assertTrue( self.game.is_any_edge(square) )
         self.assertEquals( len(path_squares), 8 )
-        self.assertNotIn( Square(1,1), path_squares )
+        self.assertTrue( Square(1,1) not in path_squares )
         self.setUp()
 
     def test_move(self):
@@ -330,7 +330,7 @@ class TestPlayer(unittest.TestCase):
         self.game.player.move(self.game,self.game.computer,0,0)
         self.assertEquals( len(self.game.player.paths), 2 )
         self.assertEquals( len(self.game.player.occupations), 1 )
-        self.assertIn( Square(0,0), self.game.player.occupations )
+        self.assertTrue( Square(0,0) in self.game.player.occupations )
         self.assertTrue( self.game.is_played(0,0) )
         self.assertFalse( self.game.is_any_edge( self.game.computer.occupations[0] ) )
         self.setUp()
@@ -341,7 +341,7 @@ class TestPlayer(unittest.TestCase):
         self.game.player.move(self.game,self.game.computer,0,1)
         self.assertEquals( len(self.game.player.paths), 1 )
         self.assertEquals( len(self.game.player.occupations), 1 )
-        self.assertIn( Square(0,1), self.game.player.occupations )
+        self.assertTrue( Square(0,1) in self.game.player.occupations )
         self.assertTrue( self.game.is_played(0,1) )
         self.assertFalse( self.game.is_any_edge( self.game.computer.occupations[0] ) )
         self.setUp()
@@ -352,7 +352,7 @@ class TestPlayer(unittest.TestCase):
         self.game.player.move(self.game,self.game.computer,1,1)
         self.assertEquals( len(self.game.player.paths), 3 )
         self.assertEquals( len(self.game.player.occupations), 1 )
-        self.assertIn( Square(1,1), self.game.player.occupations )
+        self.assertTrue( Square(1,1) in self.game.player.occupations )
         self.assertTrue( self.game.is_played(1,1) )
         self.assertTrue( self.game.is_corner( self.game.computer.occupations[0] ) )
         self.assertFalse( self.game.is_edge( self.game.computer.occupations[0] ) )
@@ -372,7 +372,7 @@ class TestPlayer(unittest.TestCase):
         self.game.player.move(self.game,self.game.computer,x,y)
         self.assertEquals( len(self.game.computer.occupations), 2 )
         for path in self.game.computer.paths:
-            self.assertNotIn( Square(x,y), path )
+            self.assertTrue( Square(x,y) not in path )
 
         # There should be a 1-move win within immediate grasp
         self.assertEquals( self.game.computer.paths[0].rank(), 1 )
